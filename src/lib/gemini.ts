@@ -1,18 +1,18 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-// Initialize Gemini client
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
-
-// Model configuration
-export const geminiModel = genAI.getGenerativeModel({
-  model: "gemini-2.5-flash",
-  generationConfig: {
-    temperature: 0.7,
-    topP: 0.8,
-    topK: 40,
-    maxOutputTokens: 2048,
-  },
-});
+// Lazy initialization to ensure env vars are loaded
+const getGeminiModel = () => {
+  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+  return genAI.getGenerativeModel({
+    model: "gemini-2.5-flash",
+    generationConfig: {
+      temperature: 0.7,
+      topP: 0.8,
+      topK: 40,
+      maxOutputTokens: 2048,
+    },
+  });
+};
 
 // System prompt for study assistant
 export const STUDY_ASSISTANT_PROMPT = `You are Certify AI, a friendly and knowledgeable study assistant for certification exam preparation.
@@ -59,7 +59,7 @@ export async function generateChatResponse(
 
   const systemInstruction = STUDY_ASSISTANT_PROMPT + contextPrompt;
 
-  const chat = geminiModel.startChat({
+  const chat = getGeminiModel().startChat({
     history: messages.slice(0, -1).map((m) => ({
       role: m.role === "user" ? "user" : "model",
       parts: [{ text: m.content }],
@@ -84,7 +84,7 @@ export async function generateResponse(
 
   const fullPrompt = `${STUDY_ASSISTANT_PROMPT}${contextPrompt}\n\nUser: ${prompt}`;
 
-  const result = await geminiModel.generateContent(fullPrompt);
+  const result = await getGeminiModel().generateContent(fullPrompt);
   const response = result.response;
   return response.text();
 }

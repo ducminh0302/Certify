@@ -32,6 +32,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    console.log("Processing chat request...");
+    console.log("API Key present:", !!process.env.GEMINI_API_KEY);
+    console.log("Messages count:", messages.length);
+    console.log("Context length:", context?.length || 0);
+
     const stream = await generateChatResponse(messages, context);
 
     // Create a readable stream from the Gemini response

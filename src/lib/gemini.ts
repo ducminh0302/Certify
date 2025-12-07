@@ -64,7 +64,10 @@ export async function generateChatResponse(
       role: m.role === "user" ? "user" : "model",
       parts: [{ text: m.content }],
     })),
-    systemInstruction: systemInstruction,
+    systemInstruction: {
+      role: "system",
+      parts: [{ text: systemInstruction }],
+    },
   });
 
   const lastMessage = messages[messages.length - 1];

@@ -18,6 +18,7 @@ import { useChatStore } from "@/stores/chatStore";
 import { getExamById } from "@/data/exams";
 import { pageTransition } from "@/lib/animations";
 import type { QuestionStatus, MultipleChoiceQuestion } from "@/types/exam";
+import { useExamSounds } from "@/hooks/use-exam-sounds";
 
 export default function ExamPage() {
   const params = useParams();
@@ -26,6 +27,7 @@ export default function ExamPage() {
 
   const [showNavigator, setShowNavigator] = useState(true);
   const [showFeedback, setShowFeedback] = useState(false);
+  const { playComplete } = useExamSounds();
 
   // Exam store
   const {
@@ -185,8 +187,10 @@ export default function ExamPage() {
 
   // Handle submit exam
   const handleSubmitExam = useCallback(() => {
+    playComplete();
     submitExam();
-  }, [submitExam]);
+  }, [submitExam, playComplete]);
+
 
   // Handle exit exam
   const handleExitExam = useCallback(() => {
@@ -264,22 +268,37 @@ export default function ExamPage() {
     const statuses = new Map<number, QuestionStatus>();
     if (currentExam) {
       currentExam.questions.forEach((q, index) => {
-        const isAnswered = isQuestionAnswered(q.id);
-        const isMarked = isQuestionMarked(q.id);
+        const userAnswer = answers[q.id];
+        const isAnswered = !!userAnswer?.selectedOption;
+        const isMarked = markedForReview.includes(q.id);
 
-        if (isAnswered && isMarked) {
-          statuses.set(index, "answered-marked");
-        } else if (isAnswered) {
-          statuses.set(index, "answered");
+        let status: QuestionStatus = "unanswered";
+
+        if (isAnswered) {
+          let isCorrect = false;
+          if (q.type === "multiple-choice") {
+            isCorrect = userAnswer.selectedOption === q.correctAnswer;
+          } else if (q.type === "multiple-select") {
+            const userSelected = userAnswer.selectedOptions || [];
+            const correct = q.correctAnswers || [];
+            isCorrect =
+              userSelected.length === correct.length &&
+              userSelected.every((val) => correct.includes(val));
+          }
+          if (isMarked) {
+            status = isCorrect ? "correct-marked" : "incorrect-marked";
+          } else {
+            status = isCorrect ? "correct" : "incorrect";
+          }
         } else if (isMarked) {
-          statuses.set(index, "marked");
-        } else {
-          statuses.set(index, "unanswered");
+          status = "marked";
         }
+
+        statuses.set(index, status);
       });
     }
     return statuses;
-  }, [currentExam, isQuestionAnswered, isQuestionMarked]);
+  }, [currentExam, answers, markedForReview]);
 
   // Loading state
   if (!currentExam || !currentQuestion) {
@@ -313,8 +332,25 @@ export default function ExamPage() {
 
       {/* Main Content */}
       <div className="flex">
+        {/* Question Navigator Sidebar - Moved to Left */}
+        <aside className="hidden lg:block p-4">
+          <div className="sticky top-20">
+            <QuestionNavigator
+              totalQuestions={currentExam.totalQuestions}
+              currentQuestion={currentQuestionIndex}
+              questionStatuses={getQuestionStatuses()}
+              isCollapsed={!showNavigator}
+              onToggle={() => setShowNavigator(!showNavigator)}
+              onNavigate={(index) => {
+                goToQuestion(index);
+                setShowFeedback(false);
+              }}
+            />
+          </div>
+        </aside>
+
         {/* Main Exam Area */}
-        <main className="flex-1 p-4 md:p-8">
+        <main className="flex-1 p-4 md:p-8 min-w-0">
           <motion.div
             variants={pageTransition}
             initial="initial"
@@ -405,34 +441,34 @@ export default function ExamPage() {
           </motion.div>
         </main>
 
-        {/* Question Navigator Sidebar */}
-        <aside className="hidden lg:block p-4">
-          <div className="sticky top-20">
-            <QuestionNavigator
-              totalQuestions={currentExam.totalQuestions}
-              currentQuestion={currentQuestionIndex}
-              questionStatuses={getQuestionStatuses()}
-              isCollapsed={!showNavigator}
-              onToggle={() => setShowNavigator(!showNavigator)}
-              onNavigate={(index) => {
-                goToQuestion(index);
-                setShowFeedback(false);
-              }}
-            />
-          </div>
-        </aside>
+        {/* AI Panel - Desktop Sidebar */}
+        <div className="hidden lg:block shrink-0">
+          <AIPanel
+            variant="sidebar"
+            questionContext={{
+              questionText: currentQuestion.text,
+              questionNumber: currentQuestionIndex + 1,
+              topic: currentQuestion.topic,
+            }}
+            onSendMessage={handleSendMessage}
+            onQuickAction={handleQuickAction}
+          />
+        </div>
       </div>
 
-      {/* AI Panel */}
-      <AIPanel
-        questionContext={{
-          questionText: currentQuestion.text,
-          questionNumber: currentQuestionIndex + 1,
-          topic: currentQuestion.topic,
-        }}
-        onSendMessage={handleSendMessage}
-        onQuickAction={handleQuickAction}
-      />
+      {/* AI Panel - Mobile Overlay */}
+      <div className="lg:hidden">
+        <AIPanel
+          variant="overlay"
+          questionContext={{
+            questionText: currentQuestion.text,
+            questionNumber: currentQuestionIndex + 1,
+            topic: currentQuestion.topic,
+          }}
+          onSendMessage={handleSendMessage}
+          onQuickAction={handleQuickAction}
+        />
+      </div>
     </div>
   );
 }

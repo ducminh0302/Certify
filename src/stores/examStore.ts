@@ -319,7 +319,7 @@ export const useExamStore = create<ExamState>()(
       },
     }),
     {
-      name: "certify-exam-storage",
+      name: "certify-exam-storage-v2",
       partialize: (state) => ({
         currentExam: state.currentExam,
         answers: state.answers,

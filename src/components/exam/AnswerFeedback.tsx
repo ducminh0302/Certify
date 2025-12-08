@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, X, Lightbulb, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { scaleInBouncy, fadeInUp } from "@/lib/animations";
 import confetti from "canvas-confetti";
+
+import { useExamSounds } from "@/hooks/use-exam-sounds";
 
 interface AnswerFeedbackProps {
   isCorrect: boolean;
@@ -25,6 +27,27 @@ export function AnswerFeedback({
   onContinue,
   onAskAI,
 }: AnswerFeedbackProps) {
+  const { playCorrect, playIncorrect } = useExamSounds();
+  const hasPlayedRef = useRef(false);
+
+  // Play sound when feedback becomes visible
+  useEffect(() => {
+    if (isVisible) {
+      if (!hasPlayedRef.current) {
+        if (isCorrect) {
+          playCorrect();
+        } else {
+          playIncorrect();
+        }
+        hasPlayedRef.current = true;
+      }
+    } else {
+      // Reset when hidden so it can play again next time
+      hasPlayedRef.current = false;
+    }
+  }, [isVisible, isCorrect, playCorrect, playIncorrect]);
+
+
   // Trigger confetti on correct answer
   useEffect(() => {
     if (isVisible && isCorrect) {
@@ -102,12 +125,12 @@ export function AnswerFeedback({
                   animate={
                     isCorrect
                       ? {
-                          scale: [1, 1.2, 1],
-                          rotate: [0, 10, -10, 0],
-                        }
+                        scale: [1, 1.2, 1],
+                        rotate: [0, 10, -10, 0],
+                      }
                       : {
-                          x: [0, -5, 5, -5, 5, 0],
-                        }
+                        x: [0, -5, 5, -5, 5, 0],
+                      }
                   }
                   transition={{ duration: 0.5 }}
                   className={cn(
@@ -241,13 +264,13 @@ export function AnswerFeedback({
                   initial={{ scale: 0, opacity: 0 }}
                   animate={{ scale: 1, opacity: 0.1 }}
                   transition={{ delay: 0.2 }}
-                  className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-emerald-500"
+                  className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-emerald-500"
                 />
                 <motion.div
                   initial={{ scale: 0, opacity: 0 }}
                   animate={{ scale: 1, opacity: 0.05 }}
                   transition={{ delay: 0.3 }}
-                  className="absolute -bottom-20 -left-20 h-60 w-60 rounded-full bg-teal-500"
+                  className="pointer-events-none absolute -bottom-20 -left-20 h-60 w-60 rounded-full bg-teal-500"
                 />
               </>
             )}

@@ -164,6 +164,10 @@ export type QuestionStatus =
   | "answered"
   | "marked"
   | "answered-marked"
+  | "correct"
+  | "incorrect"
+  | "correct-marked"
+  | "incorrect-marked"
   | "current";
 
 export interface ExamProgress {

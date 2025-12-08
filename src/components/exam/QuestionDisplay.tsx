@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { fadeInUp, staggerContainer } from "@/lib/animations";
 import type { Question } from "@/types/exam";
 
+import { MarkdownRenderer } from "@/components/ui/markdown-renderer";
+
 interface QuestionDisplayProps {
   question: Question;
   questionNumber: number;
@@ -102,9 +104,7 @@ export function QuestionDisplay({
           <div className="absolute -left-4 top-0 h-full w-1 rounded-full bg-gradient-to-b from-indigo-500 via-purple-500 to-pink-500 opacity-50" />
 
           <div className="rounded-2xl bg-card p-6 shadow-sm border border-border/50">
-            <p className="text-lg leading-relaxed text-foreground">
-              {question.text}
-            </p>
+            <MarkdownRenderer content={question.text} />
 
             {/* Item Set Stem (if applicable) */}
             {question.type === "item-set" && question.stem && (
@@ -115,9 +115,7 @@ export function QuestionDisplay({
                 <p className="text-sm font-medium text-muted-foreground mb-2">
                   Case Study:
                 </p>
-                <p className="text-sm leading-relaxed text-foreground/80">
-                  {question.stem}
-                </p>
+                <MarkdownRenderer content={question.stem} className="text-sm leading-relaxed text-foreground/80 [&_p]:text-sm" />
               </motion.div>
             )}
           </div>

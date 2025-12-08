@@ -46,6 +46,20 @@ export function QuestionNavigator({
           ring: "",
           icon: <Check className="h-3 w-3" />,
         };
+      case "correct":
+        return {
+          bg: "bg-green-100 dark:bg-green-900/30 hover:bg-green-200 dark:hover:bg-green-900/50",
+          text: "text-green-700 dark:text-green-400",
+          ring: "ring-1 ring-green-500",
+          icon: <Check className="h-3 w-3" />,
+        };
+      case "incorrect":
+        return {
+          bg: "bg-red-100 dark:bg-red-900/30 hover:bg-red-200 dark:hover:bg-red-900/50",
+          text: "text-red-700 dark:text-red-400",
+          ring: "ring-1 ring-red-500",
+          icon: <span className="text-xs font-bold">✕</span>,
+        };
       case "marked":
         return {
           bg: "bg-amber-100 dark:bg-amber-900/30 hover:bg-amber-200 dark:hover:bg-amber-900/50",
@@ -60,6 +74,20 @@ export function QuestionNavigator({
           ring: "ring-2 ring-amber-400",
           icon: <Check className="h-3 w-3" />,
         };
+      case "correct-marked":
+        return {
+          bg: "bg-gradient-to-br from-green-100 to-amber-100 dark:from-green-900/30 dark:to-amber-900/30",
+          text: "text-green-700 dark:text-green-400",
+          ring: "ring-2 ring-amber-400",
+          icon: <Check className="h-3 w-3" />,
+        };
+      case "incorrect-marked":
+        return {
+          bg: "bg-gradient-to-br from-red-100 to-amber-100 dark:from-red-900/30 dark:to-amber-900/30",
+          text: "text-red-700 dark:text-red-400",
+          ring: "ring-2 ring-amber-400",
+          icon: <span className="text-xs font-bold">✕</span>,
+        };
       default:
         return {
           bg: "bg-muted hover:bg-muted/80",
@@ -72,10 +100,20 @@ export function QuestionNavigator({
 
   // Calculate stats
   const answered = Array.from(questionStatuses.values()).filter(
-    (s) => s === "answered" || s === "answered-marked"
+    (s) =>
+      s === "answered" ||
+      s === "answered-marked" ||
+      s === "correct" ||
+      s === "incorrect" ||
+      s === "correct-marked" ||
+      s === "incorrect-marked"
   ).length;
   const marked = Array.from(questionStatuses.values()).filter(
-    (s) => s === "marked" || s === "answered-marked"
+    (s) =>
+      s === "marked" ||
+      s === "answered-marked" ||
+      s === "correct-marked" ||
+      s === "incorrect-marked"
   ).length;
 
   return (
@@ -106,7 +144,7 @@ export function QuestionNavigator({
           animate={{ x: 0, opacity: 1 }}
           exit={{ x: 100, opacity: 0 }}
           transition={{ type: "spring", damping: 25, stiffness: 300 }}
-          className="w-64 rounded-2xl border border-border bg-card shadow-lg"
+          className="w-72 rounded-2xl border border-border bg-card shadow-lg"
         >
           {/* Header */}
           <div className="flex items-center justify-between border-b border-border p-4">
@@ -153,12 +191,12 @@ export function QuestionNavigator({
           </div>
 
           {/* Question Grid */}
-          <ScrollArea className="h-80 p-3">
+          <ScrollArea className="h-80">
             <motion.div
               variants={staggerContainerFast}
               initial="initial"
               animate="animate"
-              className="grid grid-cols-5 gap-2"
+              className="grid grid-cols-5 gap-2 p-4"
             >
               {Array.from({ length: totalQuestions }, (_, i) => {
                 const styles = getStatusStyles(i);
@@ -223,8 +261,12 @@ export function QuestionNavigator({
                 <span className="text-muted-foreground">Current</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="h-3 w-3 rounded bg-emerald-100 dark:bg-emerald-900/30" />
-                <span className="text-muted-foreground">Answered</span>
+                <div className="h-3 w-3 rounded bg-green-100 dark:bg-green-900/30 ring-1 ring-green-500" />
+                <span className="text-muted-foreground">Correct</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="h-3 w-3 rounded bg-red-100 dark:bg-red-900/30 ring-1 ring-red-500" />
+                <span className="text-muted-foreground">Incorrect</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="h-3 w-3 rounded bg-amber-100 dark:bg-amber-900/30" />

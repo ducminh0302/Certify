@@ -69,7 +69,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${nunito.variable} ${outfit.variable} font-sans antialiased`}>
+      <body className={`${nunito.variable} ${outfit.variable} font-sans antialiased`} suppressHydrationWarning>
         <ThemeProvider>
           {children}
           <Toaster

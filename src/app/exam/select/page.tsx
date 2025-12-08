@@ -18,7 +18,7 @@ import {
   cardHover,
   buttonTap,
 } from "@/lib/animations";
-import { allExams } from "@/data/exams";
+import { examMetadata } from "@/data/exams";
 
 export default function ExamSelectPage() {
   return (
@@ -80,7 +80,7 @@ export default function ExamSelectPage() {
           animate="animate"
           className="grid gap-6 md:grid-cols-2 lg:grid-cols-3"
         >
-          {allExams.map((exam, index) => (
+          {examMetadata.map((exam, index) => (
             <motion.div
               key={exam.id}
               variants={fadeInUp}
@@ -93,7 +93,7 @@ export default function ExamSelectPage() {
                   <div
                     className="absolute inset-0 opacity-5 group-hover:opacity-10 transition-opacity"
                     style={{
-                      background: `linear-gradient(135deg, ${exam.color || "#4F46E5"} 0%, transparent 100%)`,
+                      background: `linear-gradient(135deg, #4F46E5 0%, transparent 100%)`,
                     }}
                   />
 
@@ -105,7 +105,7 @@ export default function ExamSelectPage() {
                         <div
                           className="flex h-12 w-12 items-center justify-center rounded-xl text-2xl"
                           style={{
-                            backgroundColor: `${exam.color || "#4F46E5"}15`,
+                            backgroundColor: `#4F46E515`,
                           }}
                         >
                           {exam.icon || "📝"}
@@ -145,42 +145,38 @@ export default function ExamSelectPage() {
                     </div>
 
                     {/* Topics */}
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      {exam.topics.slice(0, 3).map((topic) => (
-                        <span
-                          key={topic}
-                          className="rounded-full bg-muted px-2.5 py-0.5 text-xs text-muted-foreground"
-                        >
-                          {topic}
-                        </span>
-                      ))}
-                      {exam.topics.length > 3 && (
-                        <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs text-muted-foreground">
-                          +{exam.topics.length - 3} more
-                        </span>
-                      )}
-                    </div>
+                    {exam.topics && (
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {exam.topics.slice(0, 3).map((topic) => (
+                          <span
+                            key={topic}
+                            className="rounded-full bg-muted px-2.5 py-0.5 text-xs text-muted-foreground"
+                          >
+                            {topic}
+                          </span>
+                        ))}
+                        {exam.topics.length > 3 && (
+                          <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs text-muted-foreground">
+                            +{exam.topics.length - 3} more
+                          </span>
+                        )}
+                      </div>
+                    )}
 
-                    {/* Difficulty Badge */}
-                    <div className="mt-4">
-                      <span
-                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                          exam.difficulty === "beginner"
-                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-                            : exam.difficulty === "intermediate"
-                            ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-                            : "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400"
-                        }`}
-                      >
-                        {exam.difficulty.charAt(0).toUpperCase() +
-                          exam.difficulty.slice(1)}
-                      </span>
-                    </div>
+                    {/* Level Badge */}
+                    {exam.level && (
+                      <div className="mt-4">
+                        <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                          Level {exam.level}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </Link>
             </motion.div>
           ))}
+
 
           {/* Coming Soon Card */}
           <motion.div variants={fadeInUp}>

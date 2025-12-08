@@ -15,9 +15,14 @@ export interface Exam {
   difficulty: Difficulty;
   icon?: string;
   color?: string;
+  // New fields for Level 2+ support
+  level?: string; // "1", "2", "3"
+  structure?: "standalone" | "case-study";
+  cases?: Case[]; // For case-study exams
 }
 
 export type ExamCategory =
+  | "cfa"
   | "finance"
   | "cloud"
   | "development"
@@ -25,6 +30,37 @@ export type ExamCategory =
   | "security"
   | "management"
   | "other";
+
+// ============================================
+// CASE STUDY TYPES (CFA Level 2+)
+// ============================================
+
+export interface Case {
+  id: string;
+  caseNumber: number;
+  title?: string;
+  content: string; // Markdown with exhibits/tables
+  exhibits?: Exhibit[];
+  questions: CaseQuestion[];
+}
+
+export interface Exhibit {
+  id: string;
+  title: string;
+  type: "table" | "text" | "chart";
+  content: string; // Markdown table or text
+}
+
+export interface CaseQuestion {
+  id: string;
+  questionNumber: number;
+  text: string;
+  topic: string;
+  difficulty: Difficulty;
+  options: Option[];
+  correctAnswer: string;
+  explanation?: string;
+}
 
 export type Difficulty = "beginner" | "intermediate" | "advanced";
 

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Nunito, Outfit } from "next/font/google";
 import { Toaster } from "react-hot-toast";
 import { ThemeProvider } from "@/components/layout/ThemeProvider";
+import { OnboardingWrapper } from "@/components/onboarding";
 import "./globals.css";
 
 const nunito = Nunito({
@@ -71,7 +72,9 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${nunito.variable} ${outfit.variable} font-sans antialiased`} suppressHydrationWarning>
         <ThemeProvider>
-          {children}
+          <OnboardingWrapper>
+            {children}
+          </OnboardingWrapper>
           <Toaster
             position="bottom-right"
             toastOptions={{

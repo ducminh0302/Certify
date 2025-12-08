@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Lightbulb, HelpCircle, XCircle, BookOpen } from "lucide-react";
+import { Lightbulb, HelpCircle, XCircle, BookOpen, GitBranch, Workflow } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { buttonTapSubtle, staggerContainerFast, fadeInUp } from "@/lib/animations";
 
@@ -50,6 +50,53 @@ const quickActions = [
     color: "from-emerald-500 to-teal-500",
     bgColor: "bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30",
     textColor: "text-emerald-700 dark:text-emerald-400",
+  },
+  {
+    id: "mindmap",
+    label: "Mind Map",
+    icon: GitBranch,
+    prompt:
+      `Create a mind map showing the key concepts related to this question.
+
+Format your response as a Mermaid mindmap diagram:
+\`\`\`mermaid
+mindmap
+  root((Main Topic))
+    Concept 1
+      Sub-concept 1.1
+      Sub-concept 1.2
+    Concept 2
+      Sub-concept 2.1
+    Concept 3
+\`\`\`
+
+After the diagram, briefly explain each main branch (2-3 sentences each).`,
+    color: "from-cyan-500 to-blue-500",
+    bgColor: "bg-cyan-50 dark:bg-cyan-900/20 hover:bg-cyan-100 dark:hover:bg-cyan-900/30",
+    textColor: "text-cyan-700 dark:text-cyan-400",
+  },
+  {
+    id: "flowchart",
+    label: "Flowchart",
+    icon: Workflow,
+    prompt:
+      `Create a flowchart showing the process or decision flow for solving this type of question.
+
+Use a Mermaid flowchart:
+\`\`\`mermaid
+graph TD
+    A[Start: Read Question] --> B{Identify Key Concept}
+    B --> C[Apply Formula/Rule]
+    C --> D{Check Answer}
+    D -->|Correct| E[Done]
+    D -->|Wrong| F[Review Concept]
+    F --> B
+\`\`\`
+
+Then explain each step briefly.`,
+    color: "from-violet-500 to-purple-500",
+    bgColor: "bg-violet-50 dark:bg-violet-900/20 hover:bg-violet-100 dark:hover:bg-violet-900/30",
+    textColor: "text-violet-700 dark:text-violet-400",
   },
 ];
 

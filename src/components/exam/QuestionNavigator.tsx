@@ -15,6 +15,8 @@ interface QuestionNavigatorProps {
   isCollapsed?: boolean;
   onToggle: () => void;
   onNavigate: (questionIndex: number) => void;
+  structure?: "standalone" | "case-study";
+  cases?: { id: string; title?: string; questionCount: number }[];
 }
 
 export function QuestionNavigator({
@@ -24,6 +26,7 @@ export function QuestionNavigator({
   isCollapsed = false,
   onToggle,
   onNavigate,
+  cases,
 }: QuestionNavigatorProps) {
   const getStatusStyles = (index: number) => {
     const status = questionStatuses.get(index) || "unanswered";
@@ -190,68 +193,161 @@ export function QuestionNavigator({
             </motion.div>
           </div>
 
-          {/* Question Grid */}
-          <ScrollArea className="h-80">
-            <motion.div
-              variants={staggerContainerFast}
-              initial="initial"
-              animate="animate"
-              className="grid grid-cols-5 gap-2 p-4"
-            >
-              {Array.from({ length: totalQuestions }, (_, i) => {
-                const styles = getStatusStyles(i);
-                const isCurrent = i === currentQuestion;
+          {cases ? (
+            <ScrollArea className="h-80">
+              <div className="flex flex-col gap-2 p-3">
+                {(() => {
+                  let runningIndex = 0;
+                  return cases.map((caseItem, caseIdx) => {
+                    const startIndex = runningIndex;
+                    const endIndex = startIndex + caseItem.questionCount;
+                    const isCurrentCase =
+                      currentQuestion >= startIndex && currentQuestion < endIndex;
+                    runningIndex += caseItem.questionCount;
 
-                return (
-                  <motion.button
-                    key={i}
-                    variants={fadeInUp}
-                    {...buttonTapSubtle}
-                    onClick={() => onNavigate(i)}
-                    className={cn(
-                      "relative flex h-10 w-10 items-center justify-center rounded-lg text-sm transition-all duration-200",
-                      styles.bg,
-                      styles.text,
-                      styles.ring,
-                      "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                    )}
-                  >
-                    {/* Question number */}
-                    <span className={cn(isCurrent && "font-bold")}>
-                      {i + 1}
-                    </span>
-
-                    {/* Status icon */}
-                    {styles.icon && !isCurrent && (
-                      <motion.span
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-white dark:bg-gray-800 shadow-sm"
-                      >
-                        {styles.icon}
-                      </motion.span>
-                    )}
-
-                    {/* Current indicator pulse */}
-                    {isCurrent && (
+                    return (
                       <motion.div
-                        className="absolute inset-0 rounded-lg bg-indigo-500"
-                        animate={{
-                          scale: [1, 1.1, 1],
-                          opacity: [0.3, 0, 0.3],
-                        }}
-                        transition={{
-                          duration: 2,
-                          repeat: Infinity,
-                          ease: "easeInOut",
-                        }}
-                      />
-                    )}
-                  </motion.button>
-                );
-              })}
-            </motion.div>
-          </ScrollArea>
+                        key={caseItem.id || caseIdx}
+                        variants={fadeInUp}
+                        className={cn(
+                          "flex items-center gap-2 rounded-lg border p-1.5 transition-all duration-300",
+                          isCurrentCase
+                            ? "border-indigo-200 bg-indigo-50/50 dark:border-indigo-800 dark:bg-indigo-900/10 shadow-sm"
+                            : "border-transparent hover:bg-muted/30"
+                        )}
+                      >
+                        {/* Question Grid (Fixed 4 columns) */}
+                        <div className="grid grid-cols-4 gap-1.5">
+                          {Array.from(
+                            { length: caseItem.questionCount },
+                            (_, i) => {
+                              const globalIndex = startIndex + i;
+                              const styles = getStatusStyles(globalIndex);
+                              const isCurrent = globalIndex === currentQuestion;
+
+                              return (
+                                <motion.button
+                                  key={globalIndex}
+                                  whileHover={{ scale: 1.05 }}
+                                  whileTap={{ scale: 0.95 }}
+                                  onClick={() => onNavigate(globalIndex)}
+                                  className={cn(
+                                    "relative flex h-8 w-8 items-center justify-center rounded-md text-xs font-medium transition-all duration-200",
+                                    styles.bg,
+                                    styles.text,
+                                    styles.ring,
+                                    "focus:outline-none"
+                                  )}
+                                >
+                                  <span className={cn(isCurrent && "font-bold")}>
+                                    {globalIndex + 1}
+                                  </span>
+
+                                  {/* Status indicators */}
+                                  {styles.icon && !isCurrent && (
+                                    <span className="absolute -right-1 -top-1 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-background shadow-sm ring-1 ring-background">
+                                      {styles.icon}
+                                    </span>
+                                  )}
+                                </motion.button>
+                              );
+                            }
+                          )}
+                        </div>
+
+                        {/* Case Info Side Panel - Compact & Vertical */}
+                        <div className="flex min-w-[60px] flex-1 flex-col items-center justify-center border-l border-border/50 pl-2">
+                          <span
+                            className={cn(
+                              "text-[10px] font-black uppercase tracking-wider",
+                              isCurrentCase
+                                ? "text-indigo-600 dark:text-indigo-400"
+                                : "text-muted-foreground/70"
+                            )}
+                          >
+                            Case
+                          </span>
+                          <span
+                            className={cn(
+                              "text-lg font-bold leading-none",
+                              isCurrentCase
+                                ? "text-indigo-600 dark:text-indigo-400"
+                                : "text-muted-foreground/70"
+                            )}
+                          >
+                            {caseIdx + 1}
+                          </span>
+                        </div>
+                      </motion.div>
+                    );
+                  });
+                })()}
+              </div>
+            </ScrollArea>
+          ) : (
+            /* Standard Grid */
+            <ScrollArea className="h-80">
+              <motion.div
+                variants={staggerContainerFast}
+                initial="initial"
+                animate="animate"
+                className="grid grid-cols-5 gap-2 p-4"
+              >
+                {Array.from({ length: totalQuestions }, (_, i) => {
+                  const styles = getStatusStyles(i);
+                  const isCurrent = i === currentQuestion;
+
+                  return (
+                    <motion.button
+                      key={i}
+                      variants={fadeInUp}
+                      {...buttonTapSubtle}
+                      onClick={() => onNavigate(i)}
+                      className={cn(
+                        "relative flex h-10 w-10 items-center justify-center rounded-lg text-sm transition-all duration-200",
+                        styles.bg,
+                        styles.text,
+                        styles.ring,
+                        "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                      )}
+                    >
+                      {/* Question number */}
+                      <span className={cn(isCurrent && "font-bold")}>
+                        {i + 1}
+                      </span>
+
+                      {/* Status icon */}
+                      {styles.icon && !isCurrent && (
+                        <motion.span
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-white dark:bg-gray-800 shadow-sm"
+                        >
+                          {styles.icon}
+                        </motion.span>
+                      )}
+
+                      {/* Current indicator pulse */}
+                      {isCurrent && (
+                        <motion.div
+                          className="absolute inset-0 rounded-lg bg-indigo-500"
+                          animate={{
+                            scale: [1, 1.1, 1],
+                            opacity: [0.3, 0, 0.3],
+                          }}
+                          transition={{
+                            duration: 2,
+                            repeat: Infinity,
+                            ease: "easeInOut",
+                          }}
+                        />
+                      )}
+                    </motion.button>
+                  );
+                })}
+              </motion.div>
+            </ScrollArea>
+          )}
 
           {/* Legend */}
           <div className="border-t border-border p-3">

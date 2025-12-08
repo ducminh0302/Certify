@@ -19,6 +19,7 @@ import {
   Lightbulb,
   Zap,
   MessageSquare,
+  Award,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggleCompact } from "@/components/layout/ThemeToggle";
@@ -223,6 +224,12 @@ export default function ResultsPage() {
                 </span>
               </div>
             )}
+            <Link href="/achievements">
+              <Button variant="ghost" size="sm" className="gap-2">
+                <Award className="h-4 w-4" />
+                Achievements
+              </Button>
+            </Link>
             <ThemeToggleCompact />
           </div>
         </div>

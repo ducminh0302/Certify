@@ -11,13 +11,15 @@ import { AnswerOptions } from "@/components/exam/AnswerOptions";
 import { AnswerFeedback } from "@/components/exam/AnswerFeedback";
 import { QuestionNavigator } from "@/components/exam/QuestionNavigator";
 import { ExamControls, KeyboardHints } from "@/components/exam/ExamControls";
+import { CaseStudyDisplay } from "@/components/exam/CaseStudyDisplay";
 import { AIPanel } from "@/components/ai-assistant/AIPanel";
 import { SelectableTextWrapper } from "@/components/ai-assistant/SelectableTextWrapper";
 import { useExamStore } from "@/stores/examStore";
 import { useChatStore } from "@/stores/chatStore";
+import { useUserStore } from "@/stores/userStore";
 import { getExamById } from "@/data/exams";
 import { pageTransition } from "@/lib/animations";
-import type { QuestionStatus, MultipleChoiceQuestion } from "@/types/exam";
+import type { QuestionStatus, MultipleChoiceQuestion, Case } from "@/types/exam";
 import { useExamSounds } from "@/hooks/use-exam-sounds";
 
 export default function ExamPage() {
@@ -64,13 +66,27 @@ export default function ExamPage() {
     clearMessages,
   } = useChatStore();
 
-  // Initialize exam
+  // User store for personalization
+  const {
+    getPersonalizationContext,
+    updateTopicPerformance,
+    recordSession,
+    addToReviewQueue,
+    incrementDailyProgress,
+  } = useUserStore();
+
+  // Initialize exam - lazy loading
   useEffect(() => {
-    const exam = getExamById(examId);
-    if (exam && !isExamStarted) {
-      startExam(exam);
-      clearMessages();
-    }
+    const loadExam = async () => {
+      if (!isExamStarted) {
+        const exam = await getExamById(examId);
+        if (exam) {
+          startExam(exam);
+          clearMessages();
+        }
+      }
+    };
+    loadExam();
   }, [examId, isExamStarted, startExam, clearMessages]);
 
   // Redirect if exam completed
@@ -80,10 +96,34 @@ export default function ExamPage() {
     }
   }, [isExamCompleted, examId, router]);
 
-  // Current question
-  const currentQuestion = currentExam?.questions[currentQuestionIndex] as
-    | MultipleChoiceQuestion
-    | undefined;
+  // Current question - support both standalone and case-study formats
+  const isCaseStudyExam = currentExam?.structure === "case-study" && currentExam?.cases;
+
+  // For case-study exams, find current case and question within case
+  const getCurrentCaseInfo = () => {
+    if (!isCaseStudyExam || !currentExam?.cases) return null;
+
+    let questionCounter = 0;
+    for (const caseItem of currentExam.cases) {
+      const questionsInCase = caseItem.questions.length;
+      if (currentQuestionIndex < questionCounter + questionsInCase) {
+        return {
+          case: caseItem,
+          questionIndexInCase: currentQuestionIndex - questionCounter,
+          totalQuestionsInCase: questionsInCase,
+        };
+      }
+      questionCounter += questionsInCase;
+    }
+    return null;
+  };
+
+  const caseInfo = getCurrentCaseInfo();
+
+  // Get current question based on exam structure
+  const currentQuestion = isCaseStudyExam && caseInfo
+    ? caseInfo.case.questions[caseInfo.questionIndexInCase] as unknown as MultipleChoiceQuestion
+    : currentExam?.questions[currentQuestionIndex] as MultipleChoiceQuestion | undefined;
 
   // Update AI context when question changes
   useEffect(() => {
@@ -162,11 +202,38 @@ export default function ExamPage() {
     (optionId: string) => {
       if (currentQuestion && !showFeedback) {
         selectAnswer(currentQuestion.id, optionId);
+
+        // Check if answer is correct
+        const isCorrect = currentQuestion.type === "multiple-choice" &&
+          optionId === currentQuestion.correctAnswer;
+
+        // Track performance for analytics
+        const timeSpent = answers[currentQuestion.id]?.timeSpent || 0;
+        updateTopicPerformance(
+          currentQuestion.topic,
+          isCorrect,
+          timeSpent,
+          currentQuestion.id,
+          currentQuestion.difficulty as "easy" | "medium" | "hard" | undefined
+        );
+
+        // Increment daily progress
+        incrementDailyProgress();
+
+        // Add to review queue if wrong (spaced repetition)
+        if (!isCorrect) {
+          addToReviewQueue(
+            currentQuestion.id,
+            currentQuestion.topic,
+            (currentQuestion.difficulty as "easy" | "medium" | "hard") || "medium"
+          );
+        }
+
         // Show instant feedback
         setShowFeedback(true);
       }
     },
-    [currentQuestion, selectAnswer, showFeedback]
+    [currentQuestion, selectAnswer, showFeedback, answers, updateTopicPerformance, incrementDailyProgress, addToReviewQueue]
   );
 
   // Handle continue after feedback
@@ -220,6 +287,7 @@ export default function ExamPage() {
           body: JSON.stringify({
             messages: [{ role: "user", content: message }],
             context,
+            personalization: getPersonalizationContext(currentQuestion?.topic),
           }),
         });
 
@@ -252,6 +320,7 @@ export default function ExamPage() {
       endStreaming,
       currentQuestion,
       currentQuestionIndex,
+      getPersonalizationContext,
     ]
   );
 
@@ -267,7 +336,12 @@ export default function ExamPage() {
   const getQuestionStatuses = useCallback(() => {
     const statuses = new Map<number, QuestionStatus>();
     if (currentExam) {
-      currentExam.questions.forEach((q, index) => {
+      // Helper to get all questions regardless of structure
+      const allQuestions = currentExam.structure === "case-study" && currentExam.cases
+        ? currentExam.cases.flatMap(c => c.questions)
+        : currentExam.questions;
+
+      allQuestions.forEach((q, index) => {
         const userAnswer = answers[q.id];
         const isAnswered = !!userAnswer?.selectedOption;
         const isMarked = markedForReview.includes(q.id);
@@ -276,15 +350,22 @@ export default function ExamPage() {
 
         if (isAnswered) {
           let isCorrect = false;
-          if (q.type === "multiple-choice") {
-            isCorrect = userAnswer.selectedOption === q.correctAnswer;
-          } else if (q.type === "multiple-select") {
+
+          // Check explicitly for multiple-select type which has distinct properties
+          // CaseQuestion (missing type) defaults to multiple-choice logic
+          if ('type' in q && q.type === "multiple-select") {
             const userSelected = userAnswer.selectedOptions || [];
-            const correct = q.correctAnswers || [];
+            const correct = (q as any).correctAnswers || [];
             isCorrect =
               userSelected.length === correct.length &&
-              userSelected.every((val) => correct.includes(val));
+              userSelected.every((val: string) => correct.includes(val));
+          } else {
+            // Default to multiple-choice (single answer)
+            // Works for MultipleChoiceQuestion and CaseQuestion
+            const correct = 'correctAnswer' in q ? q.correctAnswer : '';
+            isCorrect = userAnswer.selectedOption === correct;
           }
+
           if (isMarked) {
             status = isCorrect ? "correct-marked" : "incorrect-marked";
           } else {
@@ -345,6 +426,12 @@ export default function ExamPage() {
                 goToQuestion(index);
                 setShowFeedback(false);
               }}
+              structure={currentExam.structure}
+              cases={currentExam.cases?.map(c => ({
+                id: c.id,
+                title: c.title,
+                questionCount: c.questions.length
+              }))}
             />
           </div>
         </aside>
@@ -369,6 +456,21 @@ export default function ExamPage() {
                 Questions
               </Button>
             </div>
+
+            {/* Case Study Display - for Level 2+ exams */}
+            {isCaseStudyExam && caseInfo && (
+              <div className="mb-6">
+                <CaseStudyDisplay
+                  caseData={caseInfo.case}
+                  currentQuestionIndex={caseInfo.questionIndexInCase}
+                  totalQuestions={caseInfo.totalQuestionsInCase}
+                  onAskAI={(prompt) => {
+                    openPanel();
+                    handleSendMessage(prompt);
+                  }}
+                />
+              </div>
+            )}
 
             {/* Question Display - Wrapped with selectable text for AI */}
             <SelectableTextWrapper

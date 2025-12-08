@@ -1,9 +1,16 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { User, Sparkles, Copy, Check, RefreshCw } from "lucide-react";
-import { useState, useMemo } from "react";
+import { User, Sparkles, Copy, Check, RefreshCw, Loader2 } from "lucide-react";
+import { useState, useMemo, lazy, Suspense } from "react";
 import { cn } from "@/lib/utils";
+
+// Lazy load MermaidDiagram for better performance
+const MermaidDiagram = lazy(() =>
+  import("@/components/visual/MermaidDiagram").then((mod) => ({
+    default: mod.MermaidDiagram,
+  }))
+);
 import { Button } from "@/components/ui/button";
 import { chatMessageVariants } from "@/lib/animations";
 import type { ChatMessage as ChatMessageType } from "@/types/chat";
@@ -156,6 +163,24 @@ function CodeBlock({ language, code }: { language: string; code: string }) {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  // Render Mermaid diagrams
+  if (language.toLowerCase() === "mermaid") {
+    return (
+      <div className="my-3">
+        <Suspense
+          fallback={
+            <div className="flex items-center justify-center p-8 bg-muted rounded-lg">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <span className="ml-2 text-sm text-muted-foreground">Loading diagram...</span>
+            </div>
+          }
+        >
+          <MermaidDiagram chart={code} />
+        </Suspense>
+      </div>
+    );
+  }
 
   return (
     <div className="group/code relative my-3 rounded-lg overflow-hidden">

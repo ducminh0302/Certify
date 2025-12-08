@@ -1,13 +1,15 @@
 import { NextRequest } from "next/server";
 import { generateChatResponse, ChatMessage } from "@/lib/gemini";
+import type { PersonalizationContext } from "@/types/user";
 
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   try {
-    const { messages, context } = (await req.json()) as {
+    const { messages, context, personalization } = (await req.json()) as {
       messages: ChatMessage[];
       context?: string;
+      personalization?: PersonalizationContext;
     };
 
     if (!messages || messages.length === 0) {
@@ -22,7 +24,7 @@ export async function POST(req: NextRequest) {
       // Return mock response for development
       const lastUserMessage = messages[messages.length - 1]?.content;
       return new Response(
-        createMockStream(lastUserMessage),
+        createMockStream(lastUserMessage, personalization),
         {
           headers: {
             "Content-Type": "text/plain; charset=utf-8",
@@ -36,8 +38,9 @@ export async function POST(req: NextRequest) {
     console.log("API Key present:", !!process.env.GEMINI_API_KEY);
     console.log("Messages count:", messages.length);
     console.log("Context length:", context?.length || 0);
+    console.log("Personalization:", personalization?.experienceLevel || "none");
 
-    const stream = await generateChatResponse(messages, context);
+    const stream = await generateChatResponse(messages, context, personalization);
 
     // Create a readable stream from the Gemini response
     const readableStream = new ReadableStream({
@@ -92,7 +95,7 @@ Think about the underlying principle: ethics codes should provide broad guidance
 
 Would you like me to explain any specific option?`,
 
-  hint: `## Here's a Helpful Hint 💡
+  hint: `## Here's a Helpful Hint
 
 Without giving away the answer, consider this:
 
@@ -125,7 +128,7 @@ Ethics codes should be *principle-based* and broadly applicable, while complianc
 
 Would you like me to walk through each option in detail?`,
 
-  concepts: `## Related Concepts to Study 📚
+  concepts: `## Related Concepts to Study
 
 Based on this question, here are the key topics you should review:
 
@@ -148,7 +151,7 @@ Based on this question, here are the key topics you should review:
 
 Would you like me to elaborate on any of these topics?`,
 
-  default: `## Let Me Help You With This! 🎯
+  default: `## Let Me Help You With This!
 
 Great question! Let me break this down:
 
@@ -168,8 +171,21 @@ The correct answer will align with established best practices that promote both 
 Is there a specific aspect you'd like me to clarify further?`,
 };
 
+// Get personalized prefix based on user level
+function getPersonalizedPrefix(personalization?: PersonalizationContext): string {
+  if (!personalization) return "";
+  
+  const level = personalization.experienceLevel;
+  if (level === "beginner") {
+    return "Let me explain this in simple terms:\n\n";
+  } else if (level === "advanced") {
+    return "Quick summary:\n\n";
+  }
+  return "";
+}
+
 // Mock stream for development without API key
-function createMockStream(userMessage?: string): ReadableStream {
+function createMockStream(userMessage?: string, personalization?: PersonalizationContext): ReadableStream {
   // Determine which response to use based on the message
   let mockResponse = MOCK_RESPONSES.default;
 
@@ -184,6 +200,10 @@ function createMockStream(userMessage?: string): ReadableStream {
   } else if (message.includes("related") || message.includes("study") || message.includes("concept")) {
     mockResponse = MOCK_RESPONSES.concepts;
   }
+
+  // Add personalized prefix
+  const prefix = getPersonalizedPrefix(personalization);
+  mockResponse = prefix + mockResponse;
 
   const chunks = mockResponse.split(" ");
   let index = 0;

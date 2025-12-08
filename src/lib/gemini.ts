@@ -1,4 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import type { PersonalizationContext } from "@/types/user";
+import { buildPersonalizedPrompt } from "./personalization";
 
 // Lazy initialization to ensure env vars are loaded
 const getGeminiModel = () => {
@@ -14,7 +16,7 @@ const getGeminiModel = () => {
   });
 };
 
-// System prompt for study assistant
+// Default system prompt for study assistant
 export const STUDY_ASSISTANT_PROMPT = `You are Certify AI, a friendly and knowledgeable study assistant for certification exam preparation.
 
 Your personality:
@@ -48,16 +50,22 @@ export interface ChatMessage {
   content: string;
 }
 
-// Generate chat response with streaming
+// Generate chat response with streaming (with personalization support)
 export async function generateChatResponse(
   messages: ChatMessage[],
-  questionContext?: string
+  questionContext?: string,
+  personalizationContext?: PersonalizationContext
 ) {
+  // Build personalized or default prompt
+  const basePrompt = personalizationContext
+    ? buildPersonalizedPrompt(personalizationContext)
+    : STUDY_ASSISTANT_PROMPT;
+
   const contextPrompt = questionContext
     ? `\n\nCurrent exam question context:\n${questionContext}`
     : "";
 
-  const systemInstruction = STUDY_ASSISTANT_PROMPT + contextPrompt;
+  const systemInstruction = basePrompt + contextPrompt;
 
   const chat = getGeminiModel().startChat({
     history: messages.slice(0, -1).map((m) => ({
@@ -79,13 +87,18 @@ export async function generateChatResponse(
 // Generate a single response (non-streaming)
 export async function generateResponse(
   prompt: string,
-  questionContext?: string
+  questionContext?: string,
+  personalizationContext?: PersonalizationContext
 ): Promise<string> {
+  const basePrompt = personalizationContext
+    ? buildPersonalizedPrompt(personalizationContext)
+    : STUDY_ASSISTANT_PROMPT;
+
   const contextPrompt = questionContext
     ? `\n\nCurrent exam question context:\n${questionContext}`
     : "";
 
-  const fullPrompt = `${STUDY_ASSISTANT_PROMPT}${contextPrompt}\n\nUser: ${prompt}`;
+  const fullPrompt = `${basePrompt}${contextPrompt}\n\nUser: ${prompt}`;
 
   const result = await getGeminiModel().generateContent(fullPrompt);
   const response = result.response;

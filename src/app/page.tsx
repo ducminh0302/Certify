@@ -10,6 +10,7 @@ import {
   Zap,
   BookOpen,
   Award,
+  Settings,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggleCompact } from "@/components/layout/ThemeToggle";
@@ -73,7 +74,18 @@ export default function HomePage() {
           </Link>
 
           <div className="flex items-center gap-4">
+            <Link href="/settings">
+              <Button variant="ghost" size="icon">
+                <Settings className="h-5 w-5" />
+              </Button>
+            </Link>
             <ThemeToggleCompact />
+            <Link href="/achievements">
+              <Button variant="ghost" className="gap-2">
+                <Award className="h-4 w-4" />
+                Achievements
+              </Button>
+            </Link>
             <Link href="/dashboard">
               <Button variant="ghost">Dashboard</Button>
             </Link>
@@ -240,11 +252,10 @@ export default function HomePage() {
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.05 }}
                 whileHover={cert.available ? { scale: 1.02 } : {}}
-                className={`flex items-center gap-4 rounded-xl border bg-card p-4 ${
-                  cert.available
+                className={`flex items-center gap-4 rounded-xl border bg-card p-4 ${cert.available
                     ? "cursor-pointer border-border hover:border-primary/50 hover:shadow-md"
                     : "cursor-not-allowed border-border/50 opacity-60"
-                }`}
+                  }`}
               >
                 <span className="text-3xl">{cert.icon}</span>
                 <div className="flex-1">

@@ -48,6 +48,30 @@ interface ExamState {
   getProgress: () => ExamProgress;
   isQuestionAnswered: (questionId: string) => boolean;
   isQuestionMarked: (questionId: string) => boolean;
+  getTotalQuestionCount: () => number; // Helper for case-study exams
+}
+
+// Helper to get total question count (works for both standalone and case-study exams)
+function getTotalQuestions(exam: Exam | null): number {
+  if (!exam) return 0;
+
+  // For case-study exams, count questions from all cases
+  if (exam.structure === "case-study" && exam.cases) {
+    return exam.cases.reduce((total, c) => total + c.questions.length, 0);
+  }
+
+  // For standalone exams, use questions array
+  return exam.questions.length;
+}
+
+// Helper to get all questions flattened
+function getAllQuestions(exam: Exam | null): Question[] {
+  if (!exam) return [];
+  if (exam.structure === "case-study" && exam.cases) {
+    // Cast case questions to Question type since they share compatible structure for our needs
+    return exam.cases.flatMap(c => c.questions) as unknown as Question[];
+  }
+  return exam.questions;
 }
 
 export const useExamStore = create<ExamState>()(
@@ -155,7 +179,8 @@ export const useExamStore = create<ExamState>()(
 
       nextQuestion: () => {
         const { currentQuestionIndex, currentExam } = get();
-        if (currentExam && currentQuestionIndex < currentExam.questions.length - 1) {
+        const totalQuestions = getTotalQuestions(currentExam);
+        if (currentExam && currentQuestionIndex < totalQuestions - 1) {
           set({
             currentQuestionIndex: currentQuestionIndex + 1,
             questionStartTime: Date.now(),
@@ -175,7 +200,8 @@ export const useExamStore = create<ExamState>()(
 
       goToQuestion: (index) => {
         const { currentExam } = get();
-        if (currentExam && index >= 0 && index < currentExam.questions.length) {
+        const totalQuestions = getTotalQuestions(currentExam);
+        if (currentExam && index >= 0 && index < totalQuestions) {
           set({
             currentQuestionIndex: index,
             questionStartTime: Date.now(),
@@ -200,22 +226,26 @@ export const useExamStore = create<ExamState>()(
           throw new Error("No exam to submit");
         }
 
+        const allQuestions = getAllQuestions(currentExam);
+
         // Calculate results
-        const questionResults: QuestionResult[] = currentExam.questions.map(
+        const questionResults: QuestionResult[] = allQuestions.map(
           (question) => {
             const userAnswer = answers[question.id] || null;
             let isCorrect = false;
             let correctAnswer: string | string[] = "";
 
-            if (question.type === "multiple-choice") {
-              correctAnswer = question.correctAnswer;
-              isCorrect = userAnswer?.selectedOption === question.correctAnswer;
-            } else if (question.type === "multiple-select") {
+            if ('type' in question && question.type === "multiple-select") {
               correctAnswer = question.correctAnswers;
               const selected = userAnswer?.selectedOptions || [];
               isCorrect =
                 selected.length === question.correctAnswers.length &&
                 selected.every((a) => question.correctAnswers.includes(a));
+            } else {
+              // Default to multiple choice or check specific type
+              const correct = 'correctAnswer' in question ? (question as any).correctAnswer : '';
+              correctAnswer = correct;
+              isCorrect = userAnswer?.selectedOption === correct;
             }
 
             return {
@@ -252,17 +282,18 @@ export const useExamStore = create<ExamState>()(
 
         const correctCount = questionResults.filter((r) => r.isCorrect).length;
         const answeredCount = Object.keys(answers).length;
-        const score = Math.round((correctCount / currentExam.totalQuestions) * 100);
+        const totalQuestions = getAllQuestions(currentExam).length;
+        const score = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0;
 
         const result: ExamResult = {
           examId: currentExam.id,
           examName: currentExam.name,
           completedAt: new Date(),
           timeTaken: currentExam.timeLimit * 60 - timeRemaining,
-          totalQuestions: currentExam.totalQuestions,
+          totalQuestions: totalQuestions,
           correctAnswers: correctCount,
           incorrectAnswers: answeredCount - correctCount,
-          unanswered: currentExam.totalQuestions - answeredCount,
+          unanswered: totalQuestions - answeredCount,
           score,
           passed: score >= currentExam.passingScore,
           topicBreakdown,
@@ -294,7 +325,8 @@ export const useExamStore = create<ExamState>()(
       // Helpers
       getCurrentQuestion: () => {
         const { currentExam, currentQuestionIndex } = get();
-        return currentExam?.questions[currentQuestionIndex] || null;
+        const allQuestions = getAllQuestions(currentExam);
+        return allQuestions[currentQuestionIndex] || null;
       },
 
       getProgress: () => {
@@ -316,6 +348,10 @@ export const useExamStore = create<ExamState>()(
 
       isQuestionMarked: (questionId) => {
         return get().markedForReview.includes(questionId);
+      },
+
+      getTotalQuestionCount: () => {
+        return getTotalQuestions(get().currentExam);
       },
     }),
     {

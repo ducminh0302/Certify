@@ -28,9 +28,15 @@ import {
 } from "@/lib/animations";
 import { useExamStore } from "@/stores/examStore";
 import { useProgressStore, ACHIEVEMENTS } from "@/stores/progressStore";
-import { allExams } from "@/data/exams";
+import { useUserStore } from "@/stores/userStore";
+import { examMetadata } from "@/data/exams";
 import { cn } from "@/lib/utils";
 import { LevelProgress } from "@/components/dashboard/LevelProgress";
+import { TopicHeatmap } from "@/components/analytics/TopicHeatmap";
+import { StudyRecommendations, DailyProgress } from "@/components/analytics/StudyRecommendations";
+import { FocusModeModal, FocusModeButton } from "@/components/analytics/FocusMode";
+import { LeaderboardCompact } from "@/components/gamification";
+import type { FocusModeConfig } from "@/types/user";
 
 function getGreeting() {
   const hour = new Date().getHours();
@@ -62,10 +68,35 @@ export default function DashboardPage() {
     getLevel,
   } = useProgressStore();
 
+  // Phase 3: Adaptive Learning
+  const {
+    analytics,
+    getStudyRecommendations,
+    getReviewsDue,
+  } = useUserStore();
+
   const [animatedXP, setAnimatedXP] = useState(0);
+  const [showFocusMode, setShowFocusMode] = useState(false);
 
   // Get level info
   const levelInfo = useMemo(() => getLevel(), [getLevel, totalXP]);
+
+  // Phase 3: Get recommendations and reviews
+  const recommendations = useMemo(() => getStudyRecommendations(), [getStudyRecommendations, analytics]);
+  const reviewsDue = useMemo(() => getReviewsDue(), [getReviewsDue, analytics]);
+  const topicPerformance = analytics?.topicPerformance || [];
+  const weakTopics = analytics?.weakTopics || [];
+
+  // Focus mode handler
+  const handleStartFocusMode = (config: FocusModeConfig) => {
+    // Navigate to exam page with focus mode config
+    // For now, just navigate to exam select with topics pre-filtered
+    const params = new URLSearchParams();
+    params.set("focusTopics", config.targetTopics.join(","));
+    if (config.difficulty) params.set("difficulty", config.difficulty);
+    params.set("count", config.questionCount.toString());
+    window.location.href = `/exam/select?${params.toString()}`;
+  };
 
   // Animate XP counter
   useEffect(() => {
@@ -112,6 +143,37 @@ export default function DashboardPage() {
   const dailyGoal = 3;
   const dailyProgress = Math.min((todayExams / dailyGoal) * 100, 100);
 
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-background">
+        <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/80 backdrop-blur-lg">
+          <div className="container mx-auto flex h-16 items-center justify-between px-4">
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted animate-pulse">
+              </div>
+              <div className="h-6 w-24 bg-muted rounded animate-pulse" />
+            </div>
+          </div>
+        </header>
+        <main className="container mx-auto px-4 py-8">
+          <div className="space-y-8">
+            <div className="h-20 bg-muted/20 rounded-xl animate-pulse" />
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="h-32 bg-muted/20 rounded-2xl animate-pulse" />
+              ))}
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -126,6 +188,12 @@ export default function DashboardPage() {
 
           <div className="flex items-center gap-4">
             <ThemeToggleCompact />
+            <Link href="/achievements">
+              <Button variant="ghost" size="sm" className="gap-2">
+                <Trophy className="h-4 w-4" />
+                Achievements
+              </Button>
+            </Link>
             <Link href="/exam/select">
               <Button className="gap-2 bg-gradient-primary">
                 <Zap className="h-4 w-4" />
@@ -294,7 +362,7 @@ export default function DashboardPage() {
                 </div>
                 <div className="mt-3 flex items-center gap-1 text-xs text-muted-foreground">
                   <Award className="h-3 w-3" />
-                  <span>{allExams.length} available</span>
+                  <span>{examMetadata.length} available</span>
                 </div>
               </div>
             </motion.div>
@@ -429,7 +497,7 @@ export default function DashboardPage() {
                   </Link>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  {allExams.slice(0, 2).map((exam) => (
+                  {examMetadata.slice(0, 2).map((exam) => (
                     <Link key={exam.id} href={`/exam/${exam.id}`}>
                       <motion.div
                         {...cardHover}
@@ -481,6 +549,43 @@ export default function DashboardPage() {
                   </div>
                 </div>
               </motion.div>
+
+              {/* Phase 3: Topic Performance Heatmap */}
+              {topicPerformance.length > 0 && (
+                <motion.div variants={fadeInUp}>
+                  <h2 className="text-lg font-semibold mb-4">Topic Performance</h2>
+                  <div className="rounded-2xl border border-border bg-card p-4">
+                    <TopicHeatmap
+                      topicPerformance={topicPerformance}
+                      onTopicClick={(topic) => {
+                        setShowFocusMode(true);
+                      }}
+                    />
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Phase 3: Study Recommendations */}
+              {recommendations.length > 0 && (
+                <motion.div variants={fadeInUp}>
+                  <h2 className="text-lg font-semibold mb-4">Study Recommendations</h2>
+                  <StudyRecommendations
+                    recommendations={recommendations}
+                    onStartPractice={(rec) => {
+                      if (rec.topic) {
+                        handleStartFocusMode({
+                          enabled: true,
+                          targetTopics: [rec.topic],
+                          questionCount: rec.questionCount || 10,
+                          includeReviewItems: rec.type === "review-due",
+                        });
+                      } else {
+                        setShowFocusMode(true);
+                      }
+                    }}
+                  />
+                </motion.div>
+              )}
             </div>
 
             {/* Right Column - Achievements */}
@@ -529,50 +634,60 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="mt-4 pt-4 border-t border-border text-center">
-                  <p className="text-sm text-muted-foreground">
-                    {unlockedAchievements.length} of {ACHIEVEMENTS.length} unlocked
-                  </p>
+                  <Link href="/achievements">
+                    <Button variant="ghost" size="sm" className="gap-2">
+                      View All Achievements
+                      <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  </Link>
                 </div>
               </div>
 
-              {/* Daily Goal */}
-              <div className="mt-6 rounded-2xl border border-border bg-card p-4">
-                <h3 className="font-medium mb-3">Daily Goal</h3>
-                <div className="flex items-center gap-3">
-                  <div className="flex-1">
-                    <div className="flex justify-between text-sm mb-2">
-                      <span>{dailyGoal} exams today</span>
-                      <span className="text-muted-foreground">
-                        {todayExams}/{dailyGoal}
-                      </span>
-                    </div>
-                    <Progress value={dailyProgress} className="h-3" />
-                  </div>
-                  <motion.div
-                    animate={
-                      todayExams >= dailyGoal
-                        ? { scale: [1, 1.2, 1], rotate: [0, 10, -10, 0] }
-                        : { scale: [1, 1.1, 1] }
-                    }
-                    transition={{
-                      duration: 2,
-                      repeat: Infinity,
-                    }}
-                    className="text-2xl"
-                  >
-                    {todayExams >= dailyGoal ? "🎉" : "🎯"}
-                  </motion.div>
+              {/* Leaderboard Preview */}
+              <div className="mt-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold">Leaderboard</h2>
+                  <Link href="/achievements">
+                    <Button variant="ghost" size="sm" className="gap-1 text-xs">
+                      View All
+                      <ArrowRight className="h-3 w-3" />
+                    </Button>
+                  </Link>
                 </div>
-                <p className="mt-3 text-xs text-muted-foreground text-center">
-                  {todayExams >= dailyGoal
-                    ? "Amazing! You've reached your daily goal!"
-                    : `Complete ${dailyGoal - todayExams} more exam${dailyGoal - todayExams > 1 ? "s" : ""} to reach your goal!`}
-                </p>
+                <LeaderboardCompact />
+              </div>
+
+              {/* Phase 3: Daily Progress */}
+              {analytics && (
+                <div className="mt-6">
+                  <DailyProgress
+                    dailyGoal={analytics.dailyGoal}
+                    dailyProgress={analytics.dailyProgress}
+                    streak={currentStreak}
+                  />
+                </div>
+              )}
+
+              {/* Phase 3: Focus Mode Button */}
+              <div className="mt-6">
+                <FocusModeButton
+                  onClick={() => setShowFocusMode(true)}
+                  weakTopicsCount={weakTopics.length}
+                />
               </div>
             </motion.div>
           </div>
         </motion.div>
       </main>
+
+      {/* Focus Mode Modal */}
+      <FocusModeModal
+        isOpen={showFocusMode}
+        onClose={() => setShowFocusMode(false)}
+        onStart={handleStartFocusMode}
+        weakTopics={weakTopics}
+        reviewCount={reviewsDue.length}
+      />
     </div>
   );
 }

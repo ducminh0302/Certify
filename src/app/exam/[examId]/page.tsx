@@ -75,10 +75,13 @@ export default function ExamPage() {
     incrementDailyProgress,
   } = useUserStore();
 
-  // Initialize exam - lazy loading
+  // Initialize exam - lazy loading with strict ID check
   useEffect(() => {
     const loadExam = async () => {
-      if (!isExamStarted) {
+      // Critical fix: Check if exam needs loading (mismatch or not loaded)
+      const needsLoad = !currentExam || currentExam.id !== examId;
+
+      if (needsLoad) {
         const exam = await getExamById(examId);
         if (exam) {
           startExam(exam);
@@ -87,7 +90,7 @@ export default function ExamPage() {
       }
     };
     loadExam();
-  }, [examId, isExamStarted, startExam, clearMessages]);
+  }, [examId, currentExam?.id, startExam, clearMessages]);
 
   // Redirect if exam completed
   useEffect(() => {
@@ -381,8 +384,8 @@ export default function ExamPage() {
     return statuses;
   }, [currentExam, answers, markedForReview]);
 
-  // Loading state
-  if (!currentExam || !currentQuestion) {
+  // Loading state handling - STRICT check to ensure no wrong exam is ever shown
+  if (!currentExam || !currentQuestion || currentExam.id !== examId) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="text-center">
